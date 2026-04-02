@@ -59,6 +59,13 @@ def load_dotenv(path: str = ".env") -> None:
         print(f"[WARN] Failed to read .env: {exc}")
 
 
+def _strip_wrapping_quotes(value: str) -> str:
+    v = value.strip()
+    if (v.startswith('"') and v.endswith('"')) or (v.startswith("'") and v.endswith("'")):
+        return v[1:-1].strip()
+    return v
+
+
 def fetch_trending_html(url: str, timeout: int) -> str:
     print(f"[INFO] Fetching trending page: {url}")
     request = Request(
@@ -98,7 +105,7 @@ def fetch_repos_from_search_api(timeout: int, count: int) -> List[Repo]:
         "Accept": "application/vnd.github+json",
         "User-Agent": "github-daily-hotlist-bot",
     }
-    token = os.getenv("GITHUB_TOKEN", "").strip()
+    token = _strip_wrapping_quotes(os.getenv("GITHUB_TOKEN", ""))
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
@@ -243,12 +250,16 @@ def build_html_email(repos: List[Repo]) -> str:
 
 
 def send_email(subject: str, html_body: str) -> None:
-    smtp_host = os.getenv("SMTP_HOST")
-    smtp_port = int(os.getenv("SMTP_PORT", "587"))
-    smtp_user = os.getenv("SMTP_USER")
-    smtp_password = os.getenv("SMTP_PASSWORD")
-    email_from = os.getenv("EMAIL_FROM")
-    email_to = os.getenv("EMAIL_TO")
+    smtp_host = _strip_wrapping_quotes(os.getenv("SMTP_HOST", ""))
+    smtp_port_raw = _strip_wrapping_quotes(os.getenv("SMTP_PORT", "587"))
+    try:
+        smtp_port = int(smtp_port_raw or "587")
+    except ValueError as exc:
+        raise RuntimeError("SMTP_PORT must be an integer.") from exc
+    smtp_user = _strip_wrapping_quotes(os.getenv("SMTP_USER", ""))
+    smtp_password = _strip_wrapping_quotes(os.getenv("SMTP_PASSWORD", ""))
+    email_from = _strip_wrapping_quotes(os.getenv("EMAIL_FROM", ""))
+    email_to = _strip_wrapping_quotes(os.getenv("EMAIL_TO", ""))
 
     missing = [
         name
@@ -264,7 +275,11 @@ def send_email(subject: str, html_body: str) -> None:
     if missing:
         raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
 
-    recipients = [addr.strip() for addr in email_to.split(",") if addr.strip()]
+    recipients = []
+    for addr in email_to.split(","):
+        cleaned = _strip_wrapping_quotes(addr).replace(" ", "")
+        if cleaned:
+            recipients.append(cleaned)
     if not recipients:
         raise RuntimeError("EMAIL_TO is empty after parsing.")
 
@@ -276,6 +291,9 @@ def send_email(subject: str, html_body: str) -> None:
 
     print(f"[INFO] Sending email via SMTP {smtp_host}:{smtp_port} to {recipients}")
     try:
+        # Gmail app passwords are commonly shown with spaces; SMTP login needs raw token.
+        if "gmail.com" in smtp_host.lower():
+            smtp_password = smtp_password.replace(" ", "")
         context = ssl.create_default_context(cafile=certifi.where())
         with smtplib.SMTP(smtp_host, smtp_port, timeout=20) as server:
             server.ehlo()
@@ -289,8 +307,11 @@ def send_email(subject: str, html_body: str) -> None:
 
 def main() -> int:
     load_dotenv()
-    timeout_raw = os.getenv("REQUEST_TIMEOUT_SECONDS", "20").strip()
-    trending_url = os.getenv("GITHUB_TRENDING_URL", "").strip() or DEFAULT_TRENDING_URL
+    timeout_raw = _strip_wrapping_quotes(os.getenv("REQUEST_TIMEOUT_SECONDS", "20"))
+    trending_url = (
+        _strip_wrapping_quotes(os.getenv("GITHUB_TRENDING_URL", ""))
+        or DEFAULT_TRENDING_URL
+    )
 
     try:
         timeout = int(timeout_raw or "20")
