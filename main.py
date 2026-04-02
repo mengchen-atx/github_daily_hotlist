@@ -220,6 +220,38 @@ def infer_value(repo: Repo) -> str:
     return "项目近期热度高，值得作为技术趋势和实现思路参考。"
 
 
+def infer_core_function(repo: Repo) -> str:
+    text = f"{repo.description} {repo.language}".lower()
+    rules = [
+        (["agent", "ai", "llm", "gpt", "rag"], "围绕 AI/大模型能力，提供模型调用、智能体编排或推理增强相关能力。"),
+        (["devops", "kubernetes", "docker", "infra"], "提供部署、运维、容器编排或工程基础设施相关工具能力。"),
+        (["security", "auth", "encryption"], "聚焦身份认证、权限控制、加密或安全防护能力建设。"),
+        (["cli", "tool", "productivity"], "提供命令行或开发效率工具，帮助自动化日常研发流程。"),
+        (["web", "frontend", "react", "vue"], "面向 Web 应用开发，增强前端工程化与交互构建效率。"),
+        (["data", "analytics", "pipeline"], "面向数据采集、处理、分析或数据流水线建设。"),
+    ]
+    for keywords, summary in rules:
+        if any(keyword in text for keyword in keywords):
+            return summary
+    return f"提供开源能力模块，核心关注点是：{repo.description or '提升开发效率与可维护性'}。"
+
+
+def infer_use_case(repo: Repo) -> str:
+    text = f"{repo.description} {repo.language}".lower()
+    rules = [
+        (["agent", "ai", "llm", "gpt", "rag"], "适用于 AI 应用开发、自动化助手、企业知识问答等场景。"),
+        (["devops", "kubernetes", "docker", "infra"], "适用于服务部署、环境管理、持续交付与平台工程场景。"),
+        (["security", "auth", "encryption"], "适用于账号体系、安全审计、数据保护与合规场景。"),
+        (["cli", "tool", "productivity"], "适用于个人开发提效、团队工程规范落地与脚本自动化场景。"),
+        (["web", "frontend", "react", "vue"], "适用于中后台、SaaS 产品与 Web 交互应用开发场景。"),
+        (["data", "analytics", "pipeline"], "适用于数据平台建设、业务分析和指标监控场景。"),
+    ]
+    for keywords, summary in rules:
+        if any(keyword in text for keyword in keywords):
+            return summary
+    return "适用于学习优秀工程实现思路，并按需集成到实际项目。"
+
+
 def build_html_email(repos: List[Repo]) -> str:
     today = dt.datetime.now().strftime("%Y-%m-%d")
     cards = []
@@ -229,8 +261,10 @@ def build_html_email(repos: List[Repo]) -> str:
           <h3 style="margin:0 0 8px 0; font-size:16px;">
             {idx}. <a href="{repo.url}" style="text-decoration:none; color:#0969da;">{repo.full_name}</a>
           </h3>
-          <p style="margin:6px 0; color:#374151;"><strong>核心功能：</strong>{html.escape(repo.description)}</p>
+          <p style="margin:6px 0; color:#374151;"><strong>核心功能：</strong>{html.escape(infer_core_function(repo))}</p>
+          <p style="margin:6px 0; color:#374151;"><strong>是干什么的：</strong>{html.escape(infer_use_case(repo))}</p>
           <p style="margin:6px 0; color:#374151;"><strong>值得关注：</strong>{html.escape(infer_value(repo))}</p>
+          <p style="margin:6px 0; color:#6b7280; font-size:13px;">项目简介：{html.escape(repo.description)}</p>
           <p style="margin:6px 0; color:#6b7280; font-size:13px;">语言：{html.escape(repo.language)} | 今日新增 Star：{html.escape(repo.stars_today)}</p>
         </div>
         """
