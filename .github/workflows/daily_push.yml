@@ -2,8 +2,9 @@ name: Daily GitHub Hotlist Push
 
 on:
   schedule:
-    # 09:00 Beijing Time ~= 01:00 UTC
-    - cron: "0 1 * * *"
+    # Austin 11:30 can be 16:30 UTC (CDT) or 17:30 UTC (CST).
+    - cron: "30 16 * * *"
+    - cron: "30 17 * * *"
   workflow_dispatch:
 
 jobs:
@@ -27,7 +28,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Gate by Austin local time
+        id: schedule_gate
+        run: |
+          now_local=$(TZ=America/Chicago date +%H:%M)
+          echo "Austin local time now: $now_local"
+          if [ "$now_local" = "11:30" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run daily push script
+        if: ${{ github.event_name == 'workflow_dispatch' || steps.schedule_gate.outputs.run == 'true' }}
         env:
           GITHUB_TRENDING_URL: ${{ secrets.GITHUB_TRENDING_URL }}
           REQUEST_TIMEOUT_SECONDS: ${{ secrets.REQUEST_TIMEOUT_SECONDS }}
