@@ -61,8 +61,10 @@ def load_dotenv(path: str = ".env") -> None:
 
 def _strip_wrapping_quotes(value: str) -> str:
     v = value.strip()
-    if (v.startswith('"') and v.endswith('"')) or (v.startswith("'") and v.endswith("'")):
-        return v[1:-1].strip()
+    while v and v[0] in {'"', "'"}:
+        v = v[1:].lstrip()
+    while v and v[-1] in {'"', "'"}:
+        v = v[:-1].rstrip()
     return v
 
 
