@@ -32,12 +32,13 @@ jobs:
         id: schedule_gate
         run: |
           now_local=$(TZ=America/Chicago date +%H:%M)
+          hour_local=$(TZ=America/Chicago date +%H)
           echo "Austin local time now: $now_local"
-          if [[ "$now_local" > "11:24" && "$now_local" < "11:41" ]]; then
-            echo "::notice::Within Austin send window (11:25-11:40), sending email."
+          if [ "$hour_local" = "11" ]; then
+            echo "::notice::Within Austin send hour (11:00-11:59), sending email."
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::notice::Outside Austin send window, skip sending."
+            echo "::notice::Outside Austin send hour, skip sending."
             echo "run=false" >> "$GITHUB_OUTPUT"
           fi
 
