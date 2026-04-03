@@ -2,24 +2,21 @@ name: Daily GitHub Hotlist Push
 
 on:
   schedule:
-    # Austin 11:30 can be 16:30 UTC (CDT) or 17:30 UTC (CST).
+    # Austin 11:30 during daylight saving time (CDT).
     - cron: "30 16 * * *"
-    - cron: "30 17 * * *"
   workflow_dispatch:
 
 jobs:
   send-daily-hotlist:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -28,22 +25,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Gate by Austin local time
-        id: schedule_gate
-        run: |
-          now_local=$(TZ=America/Chicago date +%H:%M)
-          hour_local=$(TZ=America/Chicago date +%H)
-          echo "Austin local time now: $now_local"
-          if [ "$hour_local" = "11" ]; then
-            echo "::notice::Within Austin send hour (11:00-11:59), sending email."
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::notice::Outside Austin send hour, skip sending."
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Run daily push script
-        if: ${{ github.event_name == 'workflow_dispatch' || steps.schedule_gate.outputs.run == 'true' }}
         env:
           GITHUB_TRENDING_URL: ${{ secrets.GITHUB_TRENDING_URL }}
           REQUEST_TIMEOUT_SECONDS: ${{ secrets.REQUEST_TIMEOUT_SECONDS }}
